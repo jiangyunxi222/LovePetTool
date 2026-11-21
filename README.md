@@ -20,6 +20,4 @@ python role_builder.py convert C:\Exports\Example.wpk C:\Exports\Example.lpk
 python role_builder.py verify C:\Exports\Example.lpk
 ```
 
-`migrate_libraries.py` 用于在原有 BandoriLove 工作区中重建 Garupa 和 OurNotes 手机库。它读取原库发布目录中的索引、素材和来源记录。
-
 Windows 下运行 `pwsh -File build-windows.ps1` 可打包 EXE，需要环境中已有 PyInstaller。离线环境可用 `-PyInstallerModules` 指定本地模块目录。协议回归测试运行 `python -m unittest discover -s tests -v`。

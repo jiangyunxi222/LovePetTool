@@ -1,16 +1,11 @@
-"""Convert the existing Garupa/OurNotes desktop role libraries without modifying them."""
+"""Normalize legacy role catalogs for conversion by LovePetTool."""
 
-import argparse
 from collections import defaultdict
 from pathlib import Path
-import sys
-import json
-import zipfile
 
 from role_builder import (ACTION_REGIONS, HIT_REGIONS, NUMBERING, clean_reference, collect_files,
-                          json_bytes, normalize_model, pack, read_json, text, verify)
+                          json_bytes, normalize_model, read_json, text)
 
-WORKSPACE = Path(__file__).resolve().parents[1]
 REGION_NAMES = {"body": "上身触发", "left": "左臂触发", "right": "右臂触发"}
 
 
@@ -164,62 +159,3 @@ def convert(folder, helper):
     if not runtime.is_dir():
         runtime = panel / "web/vendor"
     return catalog, collect_files(folder, catalog, models, runtime)
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("library", choices=["Garupa", "OurNotes"])
-    parser.add_argument("--role", help="只整理一个现有角色，用于检查")
-    parser.add_argument("--check", action="store_true", help="验证输入和编目，不生成 ZIP")
-    parser.add_argument("--index-only", action="store_true", help="根据现有手机版 ZIP 重建角色索引")
-    args = parser.parse_args()
-    library = args.library + "Live2D"
-    destination = WORKSPACE / (library + "-Mobile")
-    if args.index_only:
-        rows = []
-        for path in sorted((destination / "packages").rglob("*.zip")):
-            with zipfile.ZipFile(path) as archive:
-                catalog = json.loads(archive.read("catalog.json"))
-            rows.append(index_row(catalog, path.relative_to(destination).as_posix()))
-        if not rows:
-            parser.error("没有找到已整理的手机版角色包")
-        write_index(destination, args.library, rows)
-        return
-    sys.path.insert(0, str(WORKSPACE / "tools"))
-    from update_display_text import source_name
-    source = WORKSPACE / "main" / library
-    index = []
-    candidates = sorted(path.parents[1] for path in source.glob("*/*/ControlPanel/library.json"))
-    for folder in candidates:
-        if args.role and folder.name != args.role:
-            continue
-        try:
-            catalog, files = convert(folder, source_name)
-            path = f"packages/{folder.parent.name}/{folder.name}.zip"
-            if not args.check:
-                pack(files, destination / path)
-                verify(destination / path)
-            index.append(index_row(catalog, path))
-            print(f"{library} {len(index)}/{len(candidates)} {catalog['name']}", flush=True)
-        except Exception as error:
-            raise ValueError(f"{folder}: {error}") from error
-    if not index:
-        parser.error("没有找到要整理的角色")
-    if not args.role and not args.check:
-        write_index(destination, args.library, index)
-
-
-def index_row(catalog, path):
-    row = {key: catalog[key] for key in ("id", "game", "group", "name")}
-    row.update(file=path, costumes=len(catalog["costumes"]), voices=len(catalog["voices"]))
-    return row
-
-
-def write_index(destination, library, rows):
-    pending = destination / "index.json.partial"
-    pending.write_bytes(json_bytes({"game": library, "roles": rows}))
-    pending.replace(destination / "index.json")
-
-
-if __name__ == "__main__":
-    main()
