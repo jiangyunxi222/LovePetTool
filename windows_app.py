@@ -16,7 +16,7 @@ FORMATS = (("ZIP 角色包", "*.zip"), ("LPK 角色包", "*.lpk"), ("WPK 角色�
 
 def launch():
     root = tk.Tk()
-    root.title("BandoriLovePet 角色包制作工具")
+    root.title("LovePetTool")
     root.minsize(580, 350)
     root.resizable(True, True)
     frame = ttk.Frame(root, padding=18)

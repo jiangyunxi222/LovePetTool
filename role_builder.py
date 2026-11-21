@@ -1,4 +1,4 @@
-"""Build and verify BandoriLovePet mobile role packages offline."""
+"""LovePetTool builds and verifies LovePet mobile role packages offline."""
 
 import argparse
 import hashlib

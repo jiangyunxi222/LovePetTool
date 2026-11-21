@@ -7,9 +7,9 @@ try {
     if ($PyInstallerModules) {
         $modules = (Resolve-Path -LiteralPath $PyInstallerModules).Path
         python -c 'import sys; sys.path.insert(0, sys.argv[1]); from PyInstaller.__main__ import run; run(sys.argv[2:])' `
-            $modules --onefile --windowed --name BandoriLovePetRoleBuilder role_builder.py
+            $modules --onefile --windowed --name LovePetTool role_builder.py
     } else {
-        python -m PyInstaller --onefile --windowed --name BandoriLovePetRoleBuilder role_builder.py
+        python -m PyInstaller --onefile --windowed --name LovePetTool role_builder.py
     }
 } finally {
     Pop-Location

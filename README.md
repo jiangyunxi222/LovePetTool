@@ -1,6 +1,8 @@
-# BandoriLovePet Windows 角色包制作工具
+# LovePetTool
 
-使用 [手机角色包协议 v1](PROTOCOL.md) 整理文件名、目录和 `role.json`。运行 Windows 制作工具，选择素材目录，选择输出 ZIP、LPK 或 WPK，再点「制作或转换」。导入更新后的 Android LovePet，即可打开内置角色工作台。
+LovePetTool 是 Windows 离线角色包制作工具，与 [LovePet Android](https://github.com/jiangyunxi222/LovePet-Android) 共用 [手机角色包协议 v1](PROTOCOL.md)。按协议整理素材后，选择素材目录和 ZIP、LPK 或 WPK 输出格式，再点「制作或转换」。导入 Android LovePet 后可打开应用内置的角色工作台。
+
+[下载 LovePetTool.exe](https://github.com/jiangyunxi222/LovePetTool/releases/latest)
 
 ## 读取、制作与转换
 
@@ -8,7 +10,7 @@
 - 「角色包」可以读取整理好的素材 ZIP、协议包、旧版 BandoriLove ZIP 和可识别的 ViewerEX LPK、WPK。
 - 「制作或转换」在本地生成选定格式。原包缺少运行库时，选择已有兼容运行库所在的目录。
 
-Windows 分发文件为 `dist/BandoriLovePetRoleBuilder.exe`。源码入口使用 Python 3.11 或更新版本，标准库即可运行。
+Windows 发布文件为 `LovePetTool.exe`。源码入口使用 Python 3.11 或更新版本，标准库即可运行。
 
 ```powershell
 python role_builder.py

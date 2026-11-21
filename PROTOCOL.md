@@ -1,6 +1,6 @@
-# BandoriLovePet 手机角色包协议 v1
+# LovePet 手机角色包协议 v1
 
-协议标识为 `bandorilovepet-role`，版本为整数 `1`。Windows 制作工具生成协议包，Android LovePet 读取协议包并使用自己的角色工作台。ZIP、LPK 和 WPK 共用同一套角色目录、模型及素材。
+协议标识为 `bandorilovepet-role`，版本为整数 `1`。Windows 上的 LovePetTool 生成协议包，Android LovePet 读取协议包并打开内置的角色工作台。ZIP、LPK 和 WPK 共用同一套角色目录、模型及素材。
 
 ## 准备素材目录
 
