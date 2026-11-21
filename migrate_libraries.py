@@ -4,6 +4,8 @@ import argparse
 from collections import defaultdict
 from pathlib import Path
 import sys
+import json
+import zipfile
 
 from role_builder import (ACTION_REGIONS, HIT_REGIONS, NUMBERING, clean_reference, collect_files,
                           json_bytes, normalize_model, pack, read_json, text, verify)
@@ -93,6 +95,41 @@ def tracks(items, kind, hashes, original_name):
     return rows
 
 
+def merge_outfits(costumes, models, voices):
+    """Merge only outfits whose rendered model and playback lists are identical."""
+    retained = {}
+    aliases = {}
+    excluded = {"id", "flag", "aliasFlags"}
+    for outfit in costumes:
+        number = outfit["id"]
+        track_data = {kind: [{key: value for key, value in item.items() if key not in excluded} for item in outfit[kind]]
+                      for kind in ("actions", "expressions")}
+        scoped = [voice["id"] for voice in voices if number in (voice.get("costumeIds") or [])]
+        key = json_bytes([outfit["name"], models[outfit["file"]], outfit["hitRegions"], track_data, scoped])
+        existing = retained.get(key)
+        if existing is None:
+            retained[key] = outfit
+            continue
+        aliases[number] = existing["id"]
+        existing.setdefault("aliasIds", []).append(number)
+        merge_flags(existing, outfit)
+        for kind in ("actions", "expressions"):
+            for item, old in zip(existing[kind], outfit[kind]):
+                merge_flags(item, old)
+        del models[outfit["file"]]
+    for voice in voices:
+        if voice.get("costumeIds"):
+            voice["costumeIds"] = list(dict.fromkeys(aliases.get(number, number) for number in voice["costumeIds"]))
+    return list(retained.values())
+
+
+def merge_flags(item, old):
+    flags = dict.fromkeys([*item.get("aliasFlags", []), old["flag"], *old.get("aliasFlags", [])])
+    flags.pop(item["flag"], None)
+    if flags:
+        item["aliasFlags"] = list(flags)
+
+
 def convert(folder, helper):
     panel = folder / "ControlPanel"
     if not (panel / "library.json").is_file():
@@ -117,11 +154,12 @@ def convert(folder, helper):
             outfit[kind] = tracks(item[kind], kind, hashes,
                                  lambda item: helper(item, provenance.get(file, {}), lock, kind[:-1]))
         catalog["costumes"].append(outfit)
+    catalog["voices"] = tracks(source.get("voices", []), "voices", hashes,
+                                lambda voice: Path(voice["file"]).stem.removeprefix("curated_"))
+    catalog["costumes"] = merge_outfits(catalog["costumes"], models, catalog["voices"])
     distinct(catalog["costumes"], lambda row: NUMBERING.sub("", row["name"]).strip(), lambda row: [
         "来源 " + (provenance.get(row["file"], {}).get("folder") or provenance.get(row["file"], {}).get("model") or row["file"]),
         "原编号 " + str(row["id"])])
-    catalog["voices"] = tracks(source.get("voices", []), "voices", hashes,
-                                lambda voice: Path(voice["file"]).stem.removeprefix("curated_"))
     runtime = folder / "ControlPanel/web/vendor"
     if not runtime.is_dir():
         runtime = panel / "web/vendor"
@@ -133,12 +171,23 @@ def main():
     parser.add_argument("library", choices=["Garupa", "OurNotes"])
     parser.add_argument("--role", help="只整理一个现有角色，用于检查")
     parser.add_argument("--check", action="store_true", help="验证输入和编目，不生成 ZIP")
+    parser.add_argument("--index-only", action="store_true", help="根据现有手机版 ZIP 重建角色索引")
     args = parser.parse_args()
+    library = args.library + "Live2D"
+    destination = WORKSPACE / (library + "-Mobile")
+    if args.index_only:
+        rows = []
+        for path in sorted((destination / "packages").rglob("*.zip")):
+            with zipfile.ZipFile(path) as archive:
+                catalog = json.loads(archive.read("catalog.json"))
+            rows.append(index_row(catalog, path.relative_to(destination).as_posix()))
+        if not rows:
+            parser.error("没有找到已整理的手机版角色包")
+        write_index(destination, args.library, rows)
+        return
     sys.path.insert(0, str(WORKSPACE / "tools"))
     from update_display_text import source_name
-    library = args.library + "Live2D"
     source = WORKSPACE / "main" / library
-    destination = WORKSPACE / (library + "-Mobile")
     index = []
     candidates = sorted(path.parents[1] for path in source.glob("*/*/ControlPanel/library.json"))
     for folder in candidates:
@@ -150,16 +199,26 @@ def main():
             if not args.check:
                 pack(files, destination / path)
                 verify(destination / path)
-            row = {key: catalog[key] for key in ("id", "game", "group", "name")}
-            row.update(file=path, costumes=len(catalog["costumes"]), voices=len(catalog["voices"]))
-            index.append(row)
+            index.append(index_row(catalog, path))
             print(f"{library} {len(index)}/{len(candidates)} {catalog['name']}", flush=True)
         except Exception as error:
             raise ValueError(f"{folder}: {error}") from error
     if not index:
         parser.error("没有找到要整理的角色")
     if not args.role and not args.check:
-        (destination / "index.json").write_bytes(json_bytes({"game": args.library, "roles": index}))
+        write_index(destination, args.library, index)
+
+
+def index_row(catalog, path):
+    row = {key: catalog[key] for key in ("id", "game", "group", "name")}
+    row.update(file=path, costumes=len(catalog["costumes"]), voices=len(catalog["voices"]))
+    return row
+
+
+def write_index(destination, library, rows):
+    pending = destination / "index.json.partial"
+    pending.write_bytes(json_bytes({"game": library, "roles": rows}))
+    pending.replace(destination / "index.json")
 
 
 if __name__ == "__main__":

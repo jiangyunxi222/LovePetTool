@@ -125,9 +125,10 @@ def entries(items, kind):
     for item in items:
         name = check_name(item.get("name"), kind, names)
         number = item.get("id")
-        if type(number) is not int or not 0 <= number <= 2147483647 or number in ids:
-            raise ValueError(f"{kind}编号无效或重复 {name}")
-        ids.add(number)
+        for identifier in (number, *item.get("aliasIds", [])):
+            if type(identifier) is not int or not 0 <= identifier <= 2147483647 or identifier in ids:
+                raise ValueError(f"{kind}编号无效或重复 {name}")
+            ids.add(identifier)
         for flag in (item["flag"], *item.get("aliasFlags", [])):
             if not FLAG.fullmatch(flag) or flag in flags:
                 raise ValueError(f"{kind}收藏标识无效或重复 {flag}")

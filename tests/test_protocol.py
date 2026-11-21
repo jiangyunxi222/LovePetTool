@@ -6,6 +6,7 @@ from unittest.mock import patch
 import zipfile
 
 import role_builder as roles
+from migrate_libraries import merge_outfits
 from viewer_formats import convert_package, inspect_source
 
 
@@ -66,6 +67,20 @@ class PackageProtocolTests(unittest.TestCase):
         (self.source / "assets/model.moc3").unlink()
         with self.assertRaisesRegex(ValueError, "找不到资源"):
             roles.from_folder(self.source)
+
+    def test_merge_identical_outfits_preserves_legacy_ids(self):
+        first = {"id": 1, "name": "常服", "flag": "outfit_one", "file": "one.model3.json", "hitRegions": {},
+                 "actions": [{"id": 0, "name": "挥手", "flag": "first_hand", "file": "assets/hand.motion3.json"}],
+                 "expressions": []}
+        second = {**first, "id": 2, "flag": "outfit_two", "file": "two.model3.json",
+                  "actions": [{**first["actions"][0], "flag": "second_hand"}]}
+        models = {first["file"]: {}, second["file"]: {}}
+        merged, = merge_outfits([first, second], models, [])
+        self.assertEqual(merged["id"], 1)
+        self.assertEqual(merged["aliasIds"], [2])
+        self.assertEqual(merged["aliasFlags"], ["outfit_two"])
+        self.assertEqual(merged["actions"][0]["aliasFlags"], ["second_hand"])
+        self.assertEqual(list(models), [first["file"]])
 
     def test_display_numbering_rejected(self):
         motion = self.source / "assets/motions/001/001__挥手__body-left.motion3.json"
